@@ -4,5 +4,7 @@ const controller = require('../controllers/cash.controller');
 router.post('/open', controller.openShift);
 router.post('/pay', controller.processPayment);
 router.post('/close', controller.closeShift);
+router.post('/movement', controller.registerMovement);
+router.get('/active', controller.getActiveShift);
 
 module.exports = router;
