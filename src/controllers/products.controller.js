@@ -76,6 +76,48 @@ exports.createCategory = (req, res) => {
 };
 
 // ============================================================
+// 4a. ACTUALIZAR CATEGORÍA
+// ============================================================
+exports.updateCategory = (req, res) => {
+  const { id } = req.params;
+  const { nombre, icono } = req.body;
+
+  if (!nombre) {
+    return res.status(400).json({ error: 'nombre es obligatorio' });
+  }
+
+  db.run(
+    `UPDATE categorias SET nombre = ?, icono = ? WHERE id = ?`,
+    [nombre, icono || null, id],
+    function (err) {
+      if (err) return res.status(400).json({ error: err.message });
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'Categoría no encontrada' });
+      }
+      res.json({ id: Number(id), nombre, icono: icono || null });
+    }
+  );
+};
+
+// ============================================================
+// 4b. ELIMINAR CATEGORÍA
+// ============================================================
+exports.deleteCategory = (req, res) => {
+  const { id } = req.params;
+
+  db.run(`DELETE FROM categorias WHERE id = ?`, [id], function (err) {
+    if (err) {
+      // Si la categoría está en uso por productos/modificadores, SQLite lanza FK error
+      return res.status(400).json({ error: 'No se puede eliminar: la categoría está en uso' });
+    }
+    if (this.changes === 0) {
+      return res.status(404).json({ error: 'Categoría no encontrada' });
+    }
+    res.status(204).send();
+  });
+};
+
+// ============================================================
 // 5. ACTUALIZAR STOCK DE PRODUCTO
 // ============================================================
 exports.updateStock = (req, res) => {

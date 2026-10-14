@@ -8,6 +8,10 @@ require('./config/database');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Desactivar ETag en las respuestas para evitar respuestas 304 sin cuerpo
+// que pueden romper el parseo JSON del frontend.
+app.set('etag', false);
+
 // Middlewares
 // CORS restringido: solo permite orígenes específicos en producción
 app.use(cors({
