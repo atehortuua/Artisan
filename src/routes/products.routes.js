@@ -3,6 +3,8 @@ const controller = require('../controllers/products.controller');
 
 router.get('/', controller.getProducts);
 router.post('/', controller.createProduct);
+router.put('/:id', controller.updateProduct);
+router.delete('/:id', controller.deleteProduct);
 router.get('/categories', controller.getCategories);
 router.post('/categories', controller.createCategory);
 router.patch('/categories/:id', controller.updateCategory);

@@ -46,6 +46,50 @@ exports.createProduct = (req, res) => {
 };
 
 // ============================================================
+// 2b. ACTUALIZAR PRODUCTO
+// ============================================================
+exports.updateProduct = (req, res) => {
+  const { id } = req.params;
+  const { categoria_id, nombre, descripcion, precio_venta, precio_costo, stock_actual, control_stock } = req.body;
+
+  if (!nombre || precio_venta === undefined) {
+    return res.status(400).json({ error: 'nombre y precio_venta son obligatorios' });
+  }
+  if (precio_venta < 0) {
+    return res.status(400).json({ error: 'precio_venta no puede ser negativo' });
+  }
+
+  const query = `
+    UPDATE productos
+    SET categoria_id = ?, nombre = ?, descripcion = ?, precio_venta = ?, precio_costo = ?, stock_actual = ?, control_stock = ?
+    WHERE id = ? AND activo = 1
+  `;
+
+  db.run(
+    query,
+    [categoria_id || null, nombre, descripcion || null, precio_venta, precio_costo || 0, stock_actual || 0, control_stock ? 1 : 0, id],
+    function (err) {
+      if (err) return res.status(400).json({ error: err.message });
+      if (this.changes === 0) return res.status(404).json({ error: 'Producto no encontrado' });
+      res.json({ id: Number(id), categoria_id: categoria_id || null, nombre, descripcion, precio_venta, precio_costo, stock_actual, control_stock });
+    }
+  );
+};
+
+// ============================================================
+// 2c. ELIMINAR PRODUCTO (Soft Delete)
+// ============================================================
+exports.deleteProduct = (req, res) => {
+  const { id } = req.params;
+
+  db.run(`UPDATE productos SET activo = 0 WHERE id = ?`, [id], function (err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: 'Producto no encontrado' });
+    res.status(204).send();
+  });
+};
+
+// ============================================================
 // 3. OBTENER CATEGORÍAS
 // ============================================================
 exports.getCategories = (req, res) => {
