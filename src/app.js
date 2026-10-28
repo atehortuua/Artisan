@@ -32,8 +32,11 @@ const proveedoresRoutes = require('./routes/proveedores.routes');
 const timbradoRoutes = require('./routes/timbrado.routes');
 const adminRoutes = require('./routes/admin.routes');
 const cuentasRoutes = require('./routes/cuentas.routes');
+const authRoutes = require('./routes/auth.routes');
 
 // Definir Endpoints Base
+// Ruta pública de autenticación (login) — no requiere token previo.
+app.use('/api/auth', authRoutes);
 app.use('/api/tables', tablesRoutes);
 app.use('/api/products', productsRoutes);
 app.use('/api/orders', ordersRoutes);

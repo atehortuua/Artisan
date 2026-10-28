@@ -1,4 +1,5 @@
 const db = require('../config/database');
+const bcrypt = require('bcryptjs');
 
 // ============================================================
 // 1. DASHBOARD PRINCIPAL - Resumen del día
@@ -143,3 +144,112 @@ exports.getCashClosuresReport = (req, res) => {
     res.json(rows);
   });
 };
+
+// ============================================================
+// 5. GESTIÓN DE CAJEROS Y USUARIOS (EXCLUSIVO ADMIN)
+// ============================================================
+exports.getUsers = (req, res) => {
+  db.all(
+    `SELECT id, username, nombre, rol, activo, created_at FROM usuarios ORDER BY id ASC`,
+    [],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(rows);
+    }
+  );
+};
+
+exports.createUser = async (req, res) => {
+  try {
+    const { username, password, nombre, rol } = req.body;
+
+    if (!username || !password || !nombre) {
+      return res.status(400).json({ error: 'username, password y nombre son obligatorios' });
+    }
+
+    if (password.length < 4) {
+      return res.status(400).json({ error: 'La contraseña o PIN debe tener al menos 4 caracteres' });
+    }
+
+    const userRole = ['admin', 'cajero', 'cocinero', 'mesero'].includes(rol) ? rol : 'cajero';
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    db.run(
+      `INSERT INTO usuarios (username, password_hash, nombre, rol, activo) VALUES (?, ?, ?, ?, 1)`,
+      [username.trim(), passwordHash, nombre.trim(), userRole],
+      function (err) {
+        if (err) {
+          if (err.message.includes('UNIQUE')) {
+            return res.status(409).json({ error: `El usuario "${username}" ya está registrado` });
+          }
+          return res.status(400).json({ error: err.message });
+        }
+        res.status(201).json({
+          id: this.lastID,
+          username: username.trim(),
+          nombre: nombre.trim(),
+          rol: userRole,
+          activo: 1
+        });
+      }
+    );
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.updateUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { username, nombre, rol, activo, password } = req.body;
+
+    if (!nombre || !username) {
+      return res.status(400).json({ error: 'username y nombre son obligatorios' });
+    }
+
+    const userRole = ['admin', 'cajero', 'cocinero', 'mesero'].includes(rol) ? rol : 'cajero';
+    const isActive = activo === undefined ? 1 : (activo ? 1 : 0);
+
+    if (password && password.trim().length > 0) {
+      if (password.trim().length < 4) {
+        return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 4 caracteres' });
+      }
+      const passwordHash = await bcrypt.hash(password.trim(), 10);
+      db.run(
+        `UPDATE usuarios SET username = ?, nombre = ?, rol = ?, activo = ?, password_hash = ? WHERE id = ?`,
+        [username.trim(), nombre.trim(), userRole, isActive, passwordHash, id],
+        function (err) {
+          if (err) return res.status(400).json({ error: err.message });
+          if (this.changes === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
+          res.json({ id: Number(id), username: username.trim(), nombre: nombre.trim(), rol: userRole, activo: isActive });
+        }
+      );
+    } else {
+      db.run(
+        `UPDATE usuarios SET username = ?, nombre = ?, rol = ?, activo = ? WHERE id = ?`,
+        [username.trim(), nombre.trim(), userRole, isActive, id],
+        function (err) {
+          if (err) return res.status(400).json({ error: err.message });
+          if (this.changes === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
+          res.json({ id: Number(id), username: username.trim(), nombre: nombre.trim(), rol: userRole, activo: isActive });
+        }
+      );
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.deleteUser = (req, res) => {
+  const { id } = req.params;
+  if (Number(id) === 1) {
+    return res.status(400).json({ error: 'No se puede desactivar ni eliminar al administrador principal' });
+  }
+
+  db.run(`UPDATE usuarios SET activo = 0 WHERE id = ?`, [id], function (err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
+    res.status(204).send();
+  });
+};
+
